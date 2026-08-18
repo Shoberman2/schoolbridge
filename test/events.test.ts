@@ -22,6 +22,13 @@ function baseSnapshot(): Snapshot {
     announcements: {
       "9": { courseId: "101", courseName: "AP Biology", title: "Welcome", postedAt: "2026-08-10T00:00:00Z", url: null },
     },
+    discussions: {},
+    calendarEvents: {
+      "50": { courseId: "101", courseName: "AP Biology", title: "Review session", startAt: "2026-08-21T17:00:00Z", url: null },
+    },
+    moduleItems: {},
+    files: {},
+    feedback: {},
   };
 }
 
@@ -112,5 +119,73 @@ describe("diffSnapshots", () => {
     const next = baseSnapshot();
     next.courses["202"] = { name: "New Course", currentScore: 100, currentGrade: "A" };
     expect(diffSnapshots(baseSnapshot(), next)).toHaveLength(0);
+  });
+
+  it("detects a new discussion", () => {
+    const next = baseSnapshot();
+    next.discussions!["70"] = {
+      courseId: "101",
+      courseName: "AP Biology",
+      title: "Lab groups",
+      postedAt: "2026-08-17T02:00:00Z",
+      url: null,
+    };
+    const events = diffSnapshots(baseSnapshot(), next);
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("new_discussion");
+  });
+
+  it("detects new and rescheduled calendar events", () => {
+    const next = baseSnapshot();
+    next.calendarEvents!["50"] = { ...next.calendarEvents!["50"], startAt: "2026-08-22T17:00:00Z" };
+    next.calendarEvents!["51"] = {
+      courseId: "102",
+      courseName: "US History",
+      title: "Field trip",
+      startAt: "2026-08-25T13:00:00Z",
+      url: null,
+    };
+    const events = diffSnapshots(baseSnapshot(), next);
+    expect(events.map((e) => e.type).sort()).toEqual(["calendar_event_changed", "new_calendar_event"]);
+  });
+
+  it("detects new module items, files, and teacher feedback", () => {
+    const next = baseSnapshot();
+    next.moduleItems!["101:80"] = {
+      courseId: "101",
+      courseName: "AP Biology",
+      moduleName: "Unit 4",
+      title: "FRQ practice packet",
+      type: "Page",
+      url: null,
+    };
+    next.files!["81"] = { courseId: "101", courseName: "AP Biology", name: "review.pdf", createdAt: "2026-08-17T01:00:00Z", url: null };
+    next.feedback!["82"] = {
+      courseId: "101",
+      courseName: "AP Biology",
+      assignmentName: "Lab 1",
+      author: "Ms. Rivera",
+      comment: "Great hypothesis — cite your data table in the conclusion.",
+      createdAt: "2026-08-17T01:30:00Z",
+      url: null,
+    };
+    const events = diffSnapshots(baseSnapshot(), next);
+    expect(events.map((e) => e.type).sort()).toEqual(["new_feedback", "new_file", "new_module_item"]);
+    const feedback = events.find((e) => e.type === "new_feedback")!;
+    expect(feedback.summary).toContain("Ms. Rivera");
+    expect(feedback.summary).toContain("Lab 1");
+  });
+
+  it("treats categories missing from an old snapshot as baseline (no event flood on upgrade)", () => {
+    const prev = baseSnapshot();
+    delete prev.discussions;
+    delete prev.calendarEvents;
+    delete prev.moduleItems;
+    delete prev.files;
+    delete prev.feedback;
+    const next = baseSnapshot();
+    next.discussions!["70"] = { courseId: "101", courseName: "AP Biology", title: "Old thread", postedAt: null, url: null };
+    next.files!["81"] = { courseId: "101", courseName: "AP Biology", name: "syllabus.pdf", createdAt: null, url: null };
+    expect(diffSnapshots(prev, next)).toHaveLength(0);
   });
 });

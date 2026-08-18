@@ -81,6 +81,28 @@ export function renderGrades(report: GradeReport): string {
   return lines.join("\n");
 }
 
+export function renderCalendar(events: import("./types.js").CalendarEvent[]): string {
+  if (!events.length) return "No upcoming calendar events.";
+  return events
+    .map((e) => {
+      const when = e.startAt ? fmtDateTime(e.startAt) : "unscheduled";
+      const where = e.location ? ` @ ${e.location}` : "";
+      return `• [${when}] ${e.courseName}: ${e.title}${where}`;
+    })
+    .join("\n");
+}
+
+export function renderFeedback(items: import("./types.js").FeedbackComment[]): string {
+  if (!items.length) return "No recent feedback from teachers.";
+  return items
+    .map((f) => {
+      const when = f.createdAt ? fmtDateTime(f.createdAt) : "unknown time";
+      const by = f.author ? ` — ${f.author}` : "";
+      return `• [${when}] ${f.courseName} · ${f.assignmentName}${by}\n    ${f.comment.replace(/\n+/g, " ")}`;
+    })
+    .join("\n");
+}
+
 export function renderAssignment(a: RankedAssignment): string {
   const lines = [
     a.name,

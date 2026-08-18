@@ -9,6 +9,7 @@
 export * from "./types.js";
 export type { SchoolProvider } from "./providers/provider.js";
 export { CanvasProvider, type CanvasConfig } from "./providers/canvas.js";
+export { CanvasOAuth, type OAuthTokens } from "./providers/canvasAuth.js";
 export { MockProvider } from "./providers/mock.js";
 export { buildSnapshot, checkEvents, diffSnapshots, type CheckResult } from "./events.js";
 export { decorateAssignment, getGrades, listUpcoming, type GradeReport, type GradedItem } from "./queries.js";

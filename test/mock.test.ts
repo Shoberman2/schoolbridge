@@ -6,11 +6,16 @@ import { listUpcoming } from "../src/queries.js";
 describe("MockProvider", () => {
   const provider = new MockProvider(new Date("2026-08-17T12:00:00Z"));
 
-  it("builds a full snapshot", async () => {
+  it("builds a full snapshot across every category", async () => {
     const { snapshot } = await buildSnapshot(provider);
     expect(Object.keys(snapshot.courses)).toHaveLength(3);
     expect(Object.keys(snapshot.assignments).length).toBeGreaterThanOrEqual(6);
     expect(Object.keys(snapshot.announcements).length).toBeGreaterThanOrEqual(2);
+    expect(Object.keys(snapshot.discussions!).length).toBeGreaterThanOrEqual(1);
+    expect(Object.keys(snapshot.calendarEvents!).length).toBeGreaterThanOrEqual(2);
+    expect(Object.keys(snapshot.moduleItems!).length).toBeGreaterThanOrEqual(2);
+    expect(Object.keys(snapshot.files!).length).toBeGreaterThanOrEqual(1);
+    expect(Object.keys(snapshot.feedback!).length).toBeGreaterThanOrEqual(1);
   });
 
   it("diffs to zero events against itself", async () => {

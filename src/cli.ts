@@ -5,14 +5,19 @@ import { dirname } from "node:path";
 import { Command } from "commander";
 import { configFile, createProvider, resolveConfig, saveConfigFile, type CliOverrides } from "./config.js";
 import { checkEvents } from "./events.js";
+import { clearCanvasOAuth, loadConfigFile, saveCanvasOAuth } from "./config.js";
 import {
   renderAnnouncements,
   renderAssignment,
+  renderCalendar,
   renderCourses,
   renderEvents,
+  renderFeedback,
   renderGrades,
   renderUpcoming,
 } from "./format.js";
+import { CanvasProvider } from "./providers/canvas.js";
+import { CanvasOAuth } from "./providers/canvasAuth.js";
 import { runMcpServer } from "./mcp.js";
 import { SKILL_TARGETS, skillInstallPath, skillMarkdown, type SkillTarget } from "./skill.js";
 import { decorateAssignment, getGrades, listUpcoming } from "./queries.js";
@@ -138,6 +143,31 @@ withCommon(program.command("announcements").description("Recent teacher announce
     })
   );
 
+withCommon(program.command("calendar").description("Upcoming course calendar events (review sessions, field trips, in-class tests…)"))
+  .option("--days <n>", "how many days ahead to look", "30")
+  .option("--json", "output JSON")
+  .action(
+    run(async (opts: CommonOpts & { days: string }) => {
+      const { provider } = ctx(opts);
+      const events = await provider.listCalendarEvents(await provider.listCourses(), 0, Number(opts.days) || 30);
+      console.log(opts.json ? JSON.stringify(events, null, 2) : renderCalendar(events));
+    })
+  );
+
+withCommon(program.command("feedback").description("Recent teacher comments on your submitted work"))
+  .option("--days <n>", "how many days back to look", "14")
+  .option("--json", "output JSON")
+  .action(
+    run(async (opts: CommonOpts & { days: string }) => {
+      const { provider } = ctx(opts);
+      const courses = await provider.listCourses();
+      const days = Number(opts.days) || 14;
+      const perCourse = await Promise.all(courses.map((c) => provider.listFeedback(c, days)));
+      const items = perCourse.flat().sort((x, y) => (y.createdAt ?? "").localeCompare(x.createdAt ?? ""));
+      console.log(opts.json ? JSON.stringify(items, null, 2) : renderFeedback(items));
+    })
+  );
+
 withCommon(program.command("grades").description("Current course grades plus recently graded work"))
   .option("--json", "output JSON")
   .action(
@@ -244,6 +274,106 @@ withCommon(
         setTimeout(tick, ms);
       };
       await tick();
+    })
+  );
+
+function openBrowser(url: string): void {
+  const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+  spawn(opener, [url], { shell: process.platform === "win32", stdio: "ignore", detached: true }).unref();
+}
+
+const auth = program
+  .command("auth")
+  .description("OAuth2 authorization for third-party Canvas access (Developer Key flow)");
+
+auth
+  .command("login")
+  .description("Authorize schoolbridge with Canvas in your browser (requires a Developer Key from your school)")
+  .option("--base-url <url>", "Canvas base URL, e.g. https://yourschool.instructure.com")
+  .option("--client-id <id>", "Developer Key client id (or env CANVAS_CLIENT_ID)")
+  .option("--client-secret <secret>", "Developer Key client secret (or env CANVAS_CLIENT_SECRET)")
+  .option("--port <n>", "localhost callback port; must match the key's redirect URI", "8765")
+  .action(
+    run(async (opts: { baseUrl?: string; clientId?: string; clientSecret?: string; port: string }) => {
+      const file = loadConfigFile();
+      const baseUrl = opts.baseUrl ?? process.env.CANVAS_BASE_URL ?? file.canvas?.baseUrl;
+      const clientId = opts.clientId ?? process.env.CANVAS_CLIENT_ID;
+      const clientSecret = opts.clientSecret ?? process.env.CANVAS_CLIENT_SECRET;
+      const port = Number(opts.port) || 8765;
+      if (!baseUrl || !clientId || !clientSecret) {
+        console.error(
+          [
+            "OAuth login needs three values: --base-url, --client-id, --client-secret.",
+            "",
+            "These come from a Canvas Developer Key, which your school's Canvas admin",
+            "creates (Admin → Developer Keys → + API Key) with redirect URI:",
+            `  http://localhost:${port}/oauth/callback`,
+            "",
+            "If you're a student without a Developer Key, use a personal token instead:",
+            "  schoolbridge init --base-url <url> --token <token>",
+          ].join("\n")
+        );
+        process.exit(1);
+      }
+      const { tokens, userName } = await CanvasOAuth.authorize({ baseUrl, clientId, clientSecret, port }, (url) => {
+        console.log("Opening Canvas to authorize schoolbridge… If the browser doesn't open, visit:");
+        console.log(`  ${url}`);
+        openBrowser(url);
+      });
+      // Verify before saving, so a misconfigured key fails loudly here.
+      const provider = new CanvasProvider({
+        baseUrl,
+        oauth: new CanvasOAuth(baseUrl, tokens, () => {}),
+      });
+      const courses = await provider.listCourses();
+      saveCanvasOAuth(baseUrl, tokens);
+      console.log(
+        `Authorized${userName ? ` as ${userName}` : ""} — found ${courses.length} active course${
+          courses.length === 1 ? "" : "s"
+        }.`
+      );
+      console.log(`Saved OAuth session to ${configFile()} (tokens auto-refresh; revoke with: schoolbridge auth logout)`);
+    })
+  );
+
+auth
+  .command("status")
+  .description("Show which Canvas credentials schoolbridge is using")
+  .action(
+    run(async () => {
+      const file = loadConfigFile();
+      const envToken = process.env.CANVAS_ACCESS_TOKEN ?? process.env.CANVAS_TOKEN;
+      if (envToken) console.log("Auth: personal access token (from environment)");
+      else if (file.canvas?.token) console.log("Auth: personal access token (from config file)");
+      else if (file.canvas?.oauth) {
+        const exp = file.canvas.oauth.expiresAt;
+        console.log(
+          `Auth: OAuth2 session (client ${file.canvas.oauth.clientId})${
+            exp ? ` — access token ${new Date(exp) > new Date() ? "valid until" : "expired at"} ${exp}, auto-refreshes` : ""
+          }`
+        );
+      } else {
+        console.log("Not configured. Run `schoolbridge init …` (personal token) or `schoolbridge auth login …` (OAuth).");
+        return;
+      }
+      console.log(`Canvas: ${file.canvas?.baseUrl ?? process.env.CANVAS_BASE_URL ?? "(base URL from environment)"}`);
+    })
+  );
+
+auth
+  .command("logout")
+  .description("Revoke the OAuth session with Canvas and remove it from the config")
+  .action(
+    run(async () => {
+      const file = loadConfigFile();
+      if (!file.canvas?.oauth) {
+        console.log("No OAuth session stored. (Personal tokens are revoked from Canvas → Account → Settings.)");
+        return;
+      }
+      const session = new CanvasOAuth(file.canvas.baseUrl, file.canvas.oauth, () => {});
+      await session.revoke();
+      clearCanvasOAuth();
+      console.log("OAuth session revoked with Canvas and removed from the config.");
     })
   );
 

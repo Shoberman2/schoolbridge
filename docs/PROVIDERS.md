@@ -10,8 +10,16 @@ export interface SchoolProvider {
   listAssignments(course: Course): Promise<Assignment[]>;
   getAssignment(courseId: string, assignmentId: string): Promise<Assignment | null>;
   listAnnouncements(courses: Course[], sinceDays: number): Promise<Announcement[]>;
+  listDiscussions(course: Course, sinceDays: number): Promise<Discussion[]>;
+  listCalendarEvents(courses: Course[], daysBack: number, daysAhead: number): Promise<CalendarEvent[]>;
+  listModuleItems(course: Course): Promise<ModuleItemInfo[]>;
+  listFiles(course: Course, sinceDays: number): Promise<CourseFile[]>;
+  listFeedback(course: Course, sinceDays: number): Promise<FeedbackComment[]>;
 }
 ```
+
+If the platform has no equivalent for a surface (or the institution disables
+it), return `[]` — the event engine simply skips that category.
 
 Everything else — event detection, priority ranking, the CLI, the MCP server,
 the watcher — is provider-agnostic and works automatically once these four

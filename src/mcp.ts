@@ -68,6 +68,37 @@ export function createMcpServer(provider: SchoolProvider, store: StateStore): Mc
   );
 
   server.registerTool(
+    "list_calendar_events",
+    {
+      title: "List calendar events",
+      description:
+        "Course calendar events for the next N days (default 30): review sessions, field trips, in-class tests, and other scheduled happenings that aren't assignments.",
+      inputSchema: {
+        days: z.number().int().min(1).max(120).optional().describe("How many days ahead to look (default 30)"),
+      },
+    },
+    async ({ days }) =>
+      json(await provider.listCalendarEvents(await provider.listCourses(), 0, days ?? 30))
+  );
+
+  server.registerTool(
+    "list_recent_feedback",
+    {
+      title: "List recent teacher feedback",
+      description:
+        "Teacher comments left on the student's submitted work in the last N days (default 14) — useful for 'what did my teacher say about…' and for improving future work.",
+      inputSchema: {
+        days: z.number().int().min(1).max(90).optional().describe("How many days back to look (default 14)"),
+      },
+    },
+    async ({ days }) => {
+      const courses = await provider.listCourses();
+      const perCourse = await Promise.all(courses.map((c) => provider.listFeedback(c, days ?? 14)));
+      return json(perCourse.flat().sort((x, y) => (y.createdAt ?? "").localeCompare(x.createdAt ?? "")));
+    }
+  );
+
+  server.registerTool(
     "get_grades",
     {
       title: "Get grades",
@@ -82,7 +113,7 @@ export function createMcpServer(provider: SchoolProvider, store: StateStore): Mc
     {
       title: "Check for new events",
       description:
-        "Compare the LMS with the last check and return everything that changed since: new assignments, due-date changes, newly posted or changed grades, new announcements, and course-grade moves. Persists the new state, so each call reports only fresh changes. The first call ever returns baseline=true with no events.",
+        "Compare the LMS with the last check and return everything that changed since: new assignments, due-date changes, newly posted or changed grades, new announcements, new discussions, new/moved calendar events, newly published course content and files, new teacher feedback on submissions, and course-grade moves. Persists the new state, so each call reports only fresh changes. The first call ever returns baseline=true with no events.",
     },
     async () => {
       const r = await checkEvents(provider, store);

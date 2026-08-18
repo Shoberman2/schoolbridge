@@ -54,13 +54,32 @@ schoolbridge init --base-url https://yourschool.instructure.com --token <paste-t
 
 `init` verifies the connection, then saves the config to `~/.schoolbridge/config.json` (created with `0600` permissions — it holds your token). You can also skip the file entirely and use the `CANVAS_BASE_URL` and `CANVAS_ACCESS_TOKEN` environment variables.
 
+### Third-party apps: requesting Canvas API permission (OAuth2)
+
+Personal tokens are fine for your own agent on your own machine. When schoolbridge is embedded in a **third-party app or service**, the user shouldn't hand over a raw token — Canvas's answer is OAuth2, where the app *requests permission* and the user approves it on Canvas's own consent screen. schoolbridge implements the full flow:
+
+1. **Get a Developer Key.** The app developer asks the school's Canvas admin to create one (**Admin → Developer Keys → + API Key**) with redirect URI `http://localhost:8765/oauth/callback`. The admin controls whether to approve, and can scope/revoke the key at any time. This yields a *client id* and *client secret*.
+2. **The user authorizes in their browser:**
+
+   ```bash
+   schoolbridge auth login --base-url https://yourschool.instructure.com \
+     --client-id 10000000000001 --client-secret <secret>
+   ```
+
+   schoolbridge opens Canvas's consent page, catches the callback on localhost (with CSRF `state` validation), exchanges the code for tokens, verifies the connection, and stores the session.
+3. **Tokens refresh automatically.** Access tokens expire hourly; schoolbridge refreshes them transparently (and retries once on a 401), so agents and watchers keep running indefinitely.
+
+Manage the session with `schoolbridge auth status` and `schoolbridge auth logout` (which revokes the token with Canvas, not just locally). Users can also revoke access anytime from Canvas → Account → Settings → Approved Integrations. A manual token (flag, env var, or `init`) always takes precedence over a stored OAuth session, and everything stays read-only either way.
+
 Then:
 
 ```bash
 schoolbridge upcoming          # ranked work due this week (+ recent overdue work)
 schoolbridge grades            # course grades + recently graded assignments
 schoolbridge announcements     # recent teacher announcements
-schoolbridge events            # what changed since the last check
+schoolbridge calendar          # upcoming course calendar events
+schoolbridge feedback          # recent teacher comments on your work
+schoolbridge events            # everything that changed since the last check
 ```
 
 ---
@@ -106,6 +125,8 @@ Then just ask:
 | `list_upcoming_work` | Work due in the next N days (default 7) + recent overdue work, each with a 0–100 `priority` ranking hint |
 | `get_assignment_details` | One assignment with its full instructions as plain text |
 | `list_announcements` | Teacher announcements from the last N days |
+| `list_calendar_events` | Course calendar events for the next N days |
+| `list_recent_feedback` | Teacher comments on your submitted work |
 | `get_grades` | Course grades + everything graded in the last two weeks |
 | `check_new_events` | Everything that changed since the last check (see [Events](#events)) |
 
@@ -221,7 +242,15 @@ Every event has the same shape, so agents can pattern-match on `type`:
 | `grade_posted` | A grade appears on previously ungraded work |
 | `grade_changed` | An existing grade is revised |
 | `new_announcement` | A teacher posts an announcement |
+| `new_discussion` | A teacher opens a discussion topic |
+| `new_calendar_event` | Something lands on a course calendar (review session, field trip, in-class test…) |
+| `calendar_event_changed` | A calendar event is rescheduled |
+| `new_module_item` | New course content is published (pages, linked resources…) |
+| `new_file` | A file is added to a course |
+| `new_feedback` | A teacher comments on your submitted work |
 | `course_grade_changed` | Your overall course grade moves |
+
+Coverage degrades gracefully: if your institution disables a surface (e.g. the Files tab), that category is silently skipped rather than erroring. When upgrading schoolbridge, newly added categories baseline quietly on the first poll instead of flooding you with "new" events for things that already existed.
 
 `summary` is always a ready-to-speak sentence; `data` carries the structured before/after values.
 
@@ -269,7 +298,6 @@ Resolution order for every setting: **CLI flag → environment variable → `~/.
 
 - Providers: Google Classroom, Schoology, Moodle, PowerSchool
 - Calendar export (ICS) of upcoming work
-- Canvas modules/files context for richer study plans
 - Native push (Canvas live events) where institutions allow it
 
 ## Contributing

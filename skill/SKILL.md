@@ -1,7 +1,7 @@
 ---
 name: schoolbridge
 description: Check school assignments, grades, due dates, and teacher announcements from Canvas (or another LMS) via the schoolbridge CLI. Use when the user asks about homework, upcoming tests, deadlines, grades, study plans, or anything school-related — and on heartbeats/schedules to catch new school activity and report it.
-version: 0.2.0
+version: 0.3.0
 author: schoolbridge contributors
 homepage: https://github.com/Shoberman2/schoolbridge
 metadata: {"openclaw":{"emoji":"🎒","requires":{"bins":["schoolbridge"]},"install":[{"id":"npm","kind":"node","package":"schoolbridge","bins":["schoolbridge"]}]}}
@@ -22,9 +22,14 @@ Run `schoolbridge courses`. If it errors with "Canvas is not configured":
    "+ New Access Token").
 2. Run: `schoolbridge init --base-url <url> --token <token>`
 
-The token is a secret — never repeat it back in conversation or logs. For
-testing without credentials, add `--provider mock` to any command to get
-realistic sample data.
+If the school instead issued an OAuth Developer Key (third-party app access),
+authorize in the browser with:
+`schoolbridge auth login --base-url <url> --client-id <id> --client-secret <secret>`
+— tokens then refresh automatically.
+
+The token/secret values are secrets — never repeat them back in conversation
+or logs. For testing without credentials, add `--provider mock` to any
+command to get realistic sample data.
 
 ## Commands (add --json for machine-readable output)
 
@@ -40,10 +45,16 @@ realistic sample data.
 - `schoolbridge assignment <courseId> <assignmentId> --json` — one
   assignment with its full instructions as plain text. Use this before
   building a study plan.
-- `schoolbridge events --json` — everything that changed since the last
+- `schoolbridge calendar --json [--days N]` — upcoming course calendar
+  events (review sessions, field trips, in-class tests; default: next 30 days).
+- `schoolbridge feedback --json [--days N]` — teacher comments on the
+  student's submitted work (default: last 14 days).
+- `schoolbridge events --json` — **everything** that changed since the last
   check: new assignments, due-date changes, posted/changed grades, new
-  announcements, course-grade moves. One JSON object per line; **empty output
-  means nothing new**. The first run ever saves a baseline and prints nothing.
+  announcements, new discussions, new or rescheduled calendar events, newly
+  published course content and files, new teacher feedback, and course-grade
+  moves. One JSON object per line; **empty output means nothing new**. The
+  first run ever saves a baseline and prints nothing.
 
 ## Proactive monitoring (heartbeats)
 
