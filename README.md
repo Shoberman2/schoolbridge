@@ -131,7 +131,7 @@ schoolbridge install-skill hermes      # writes ~/.hermes/skills/schoolbridge/SK
 or straight from this repo with Hermes' own installer:
 
 ```bash
-hermes skills install https://raw.githubusercontent.com/Shoberman2/schoolAgenticExtension/main/skill/SKILL.md
+hermes skills install https://raw.githubusercontent.com/Shoberman2/schoolbridge/main/skill/SKILL.md
 ```
 
 Hermes auto-discovers the skill on startup and activates it whenever the conversation is school-shaped ("what homework do I have?", "plan my week", "make a study plan for the bio test"). Add `schoolbridge events --json` to a heartbeat/schedule and Hermes will proactively tell you when a teacher posts an assignment, uploads a grade, or makes an announcement.

@@ -6,11 +6,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Shoberman2/schoolAgenticExtension.git"
+    "url": "git+https://github.com/Shoberman2/schoolbridge.git"
   },
-  "homepage": "https://github.com/Shoberman2/schoolAgenticExtension#readme",
+  "homepage": "https://github.com/Shoberman2/schoolbridge#readme",
   "bugs": {
-    "url": "https://github.com/Shoberman2/schoolAgenticExtension/issues"
+    "url": "https://github.com/Shoberman2/schoolbridge/issues"
   },
   "bin": {
     "schoolbridge": "dist/cli.js"
