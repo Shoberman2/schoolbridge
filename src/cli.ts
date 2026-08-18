@@ -38,12 +38,13 @@ interface CommonOpts extends CliOverrides {
 
 function withCommon(cmd: Command): Command {
   return cmd
-    .option("--provider <name>", "provider to use: canvas | mock")
+    .option("--provider <name>", "provider to use: canvas | ics | mock")
     .option("--base-url <url>", "Canvas base URL, e.g. https://yourschool.instructure.com")
-    .option("--token <token>", "Canvas access token");
+    .option("--token <token>", "Canvas access token")
+    .option("--feed-url <url>", "Canvas calendar feed URL (.ics) for the zero-token ics provider");
 }
 
-function ctx(opts: CliOverrides) {
+function ctx(opts: CliOverrides & { feedUrl?: string }) {
   const cfg = resolveConfig(opts);
   return { cfg, provider: createProvider(cfg), store: new StateStore(cfg.provider) };
 }
@@ -72,12 +73,42 @@ withCommon(
   run(async (opts: CliOverrides) => {
     const providerName = opts.provider ?? "canvas";
     if (providerName === "mock") {
-      saveConfigFile({ provider: "mock" });
+      saveConfigFile({ ...loadConfigFile(), provider: "mock" });
       console.log(`Saved ${configFile()} — using the mock provider (sample data, no credentials needed).`);
       return;
     }
+    if (providerName === "ics") {
+      const feedUrl = opts.feedUrl ?? process.env.SCHOOLBRIDGE_ICS_URL;
+      if (!feedUrl) {
+        console.error(
+          [
+            "The ics provider needs your Canvas calendar feed URL — no token or",
+            "admin required, every Canvas account has one:",
+            "",
+            "  1. Open Canvas in a web browser → Calendar",
+            '  2. Click "Calendar Feed" (bottom-right of the page)',
+            "  3. Copy the URL (it ends in .ics)",
+            "",
+            "Then run:",
+            "  schoolbridge init --provider ics --feed-url <paste-url>",
+          ].join("\n")
+        );
+        process.exit(1);
+      }
+      const provider = createProvider({ provider: "ics", ics: { feedUrl } });
+      const courses = await provider.listCourses();
+      saveConfigFile({ ...loadConfigFile(), provider: "ics", ics: { feedUrl } });
+      console.log(
+        `Connected to the calendar feed — found ${courses.length} course${courses.length === 1 ? "" : "s"}.`
+      );
+      console.log(`Saved ${configFile()}`);
+      console.log(
+        "Note: the feed covers assignments, due dates, and calendar events. Grades, announcements, and feedback need a Canvas token or OAuth."
+      );
+      return;
+    }
     if (providerName !== "canvas") {
-      throw new Error(`Unknown provider "${providerName}". Available providers: canvas, mock`);
+      throw new Error(`Unknown provider "${providerName}". Available providers: canvas, ics, mock`);
     }
     const baseUrl = opts.baseUrl ?? process.env.CANVAS_BASE_URL;
     const token = opts.token ?? process.env.CANVAS_ACCESS_TOKEN ?? process.env.CANVAS_TOKEN;
@@ -99,7 +130,8 @@ withCommon(
     }
     const provider = createProvider({ provider: "canvas", canvas: { baseUrl, token } });
     const courses = await provider.listCourses();
-    saveConfigFile({ provider: "canvas", canvas: { baseUrl, token } });
+    const existing = loadConfigFile();
+    saveConfigFile({ ...existing, provider: "canvas", canvas: { ...(existing.canvas ?? {}), baseUrl, token } });
     console.log(
       `Connected to ${baseUrl} — found ${courses.length} active course${courses.length === 1 ? "" : "s"}.`
     );

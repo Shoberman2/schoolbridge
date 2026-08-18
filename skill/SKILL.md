@@ -1,7 +1,7 @@
 ---
 name: schoolbridge
 description: Check school assignments, grades, due dates, and teacher announcements from Canvas (or another LMS) via the schoolbridge CLI. Use when the user asks about homework, upcoming tests, deadlines, grades, study plans, or anything school-related — and on heartbeats/schedules to catch new school activity and report it.
-version: 0.3.1
+version: 0.4.0
 author: schoolbridge contributors
 homepage: https://github.com/Shoberman2/schoolbridge
 metadata: {"openclaw":{"emoji":"🎒","requires":{"bins":["schoolbridge"]},"install":[{"id":"npm","kind":"node","package":"schoolbridge","bins":["schoolbridge"]}]}}
@@ -26,6 +26,15 @@ If the school instead issued an OAuth Developer Key (third-party app access),
 authorize in the browser with:
 `schoolbridge auth login --base-url <url> --client-id <id> --client-secret <secret>`
 — tokens then refresh automatically.
+
+If the student can't create a token (some schools disable it; the mobile app
+has no token button), fall back to the zero-credential calendar feed: have
+them open Canvas in a web browser → Calendar → "Calendar Feed" (bottom-right)
+→ copy the .ics URL, then run:
+`schoolbridge init --provider ics --feed-url <url>`
+This covers assignments, due dates, calendar events, ranking, and study
+plans — but not grades, announcements, or feedback, so skip those features
+and say why if asked.
 
 The token/secret values are secrets — never repeat them back in conversation
 or logs. For testing without credentials, add `--provider mock` to any

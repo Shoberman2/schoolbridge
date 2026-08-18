@@ -1,6 +1,6 @@
 {
   "name": "schoolbridge",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Connect Canvas and other school platforms to AI agents — MCP server, JSON CLI, agent skill (Hermes/OpenClaw), and event watcher for assignments, grades, and announcements.",
   "type": "module",
   "license": "MIT",

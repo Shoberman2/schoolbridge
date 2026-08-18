@@ -63,6 +63,20 @@ schoolbridge init --base-url https://yourschool.instructure.com --token <paste-t
 
 `init` verifies the connection, then saves the config to `~/.schoolbridge/config.json` (created with `0600` permissions — it holds your token). You can also skip the file entirely and use the `CANVAS_BASE_URL` and `CANVAS_ACCESS_TOKEN` environment variables.
 
+### Can't get a token? Use the zero-credential calendar feed
+
+Some schools disable student access tokens (and the Canvas mobile app doesn't have the token button at all). Every Canvas account still has a **calendar feed** that needs no token and no admin:
+
+1. Open Canvas in a **web browser** → **Calendar**
+2. Click **"Calendar Feed"** (bottom-right of the page) and copy the URL (ends in `.ics`)
+3. Run:
+
+```bash
+schoolbridge init --provider ics --feed-url <paste-url>
+```
+
+The `ics` provider covers assignments, due dates, and calendar events — so `upcoming` (with priority ranking), `calendar`, study planning, and change events (`new_assignment`, `due_date_changed`, `new_calendar_event`, `calendar_event_changed`) all work. The feed carries no grades, announcements, submissions, or feedback, so those surfaces stay empty until you can add a token or OAuth.
+
 ### Third-party apps: requesting Canvas API permission (OAuth2)
 
 Personal tokens are fine for your own agent on your own machine. When schoolbridge is embedded in a **third-party app or service**, the user shouldn't hand over a raw token — Canvas's answer is OAuth2, where the app *requests permission* and the user approves it on Canvas's own consent screen. schoolbridge implements the full flow:

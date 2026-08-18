@@ -2,11 +2,12 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CanvasProvider } from "./providers/canvas.js";
 import { CanvasOAuth, type OAuthTokens } from "./providers/canvasAuth.js";
+import { IcsProvider } from "./providers/ics.js";
 import { MockProvider } from "./providers/mock.js";
 import type { SchoolProvider } from "./providers/provider.js";
 import { dataDir } from "./state.js";
 
-export type ProviderName = "canvas" | "mock";
+export type ProviderName = "canvas" | "ics" | "mock";
 
 export interface ResolvedConfig {
   provider: ProviderName;
@@ -17,12 +18,15 @@ export interface ResolvedConfig {
     /** OAuth2 session created by `schoolbridge auth login`. */
     oauth?: OAuthTokens;
   };
+  /** Zero-credential Canvas calendar feed (Calendar → "Calendar Feed"). */
+  ics?: { feedUrl: string };
 }
 
 export interface CliOverrides {
   provider?: string;
   baseUrl?: string;
   token?: string;
+  feedUrl?: string;
 }
 
 export function configFile(): string {
@@ -76,8 +80,21 @@ export function resolveConfig(overrides: CliOverrides = {}): ResolvedConfig {
     "canvas") as string;
 
   if (provider === "mock") return { provider: "mock" };
+  if (provider === "ics") {
+    const feedUrl = overrides.feedUrl ?? process.env.SCHOOLBRIDGE_ICS_URL ?? file.ics?.feedUrl;
+    if (!feedUrl) {
+      throw new Error(
+        [
+          "No calendar feed configured. Get the URL from Canvas → Calendar →",
+          '"Calendar Feed" (bottom-right, ends in .ics), then run:',
+          "  schoolbridge init --provider ics --feed-url <url>",
+        ].join("\n")
+      );
+    }
+    return { provider: "ics", ics: { feedUrl } };
+  }
   if (provider !== "canvas") {
-    throw new Error(`Unknown provider "${provider}". Available providers: canvas, mock`);
+    throw new Error(`Unknown provider "${provider}". Available providers: canvas, ics, mock`);
   }
 
   const baseUrl = overrides.baseUrl ?? process.env.CANVAS_BASE_URL ?? file.canvas?.baseUrl;
@@ -100,6 +117,7 @@ export function resolveConfig(overrides: CliOverrides = {}): ResolvedConfig {
 
 export function createProvider(cfg: ResolvedConfig): SchoolProvider {
   if (cfg.provider === "mock") return new MockProvider();
+  if (cfg.provider === "ics") return new IcsProvider(cfg.ics!.feedUrl);
   const { baseUrl, token, oauth } = cfg.canvas!;
   const session = oauth
     ? new CanvasOAuth(baseUrl, oauth, (updated) => saveCanvasOAuth(baseUrl, updated))

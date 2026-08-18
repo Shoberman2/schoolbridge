@@ -10,14 +10,16 @@
 #
 #   --base-url URL   Canvas base URL (with --token, runs `schoolbridge init`)
 #   --token TOKEN    Canvas access token (Account → Settings → + New Access Token)
+#   --feed-url URL   Zero-token alternative: Canvas calendar feed (.ics URL)
 #   --skill NAME     Install the agent skill: hermes | openclaw | agents
 set -euo pipefail
 
-BASE_URL="" TOKEN="" SKILL=""
+BASE_URL="" TOKEN="" FEED_URL="" SKILL=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --base-url) BASE_URL="$2"; shift 2 ;;
     --token) TOKEN="$2"; shift 2 ;;
+    --feed-url) FEED_URL="$2"; shift 2 ;;
     --skill) SKILL="$2"; shift 2 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
@@ -45,6 +47,8 @@ npm install -g schoolbridge 2>/dev/null || npm install -g git+https://github.com
 
 if [ -n "$BASE_URL" ] && [ -n "$TOKEN" ]; then
   schoolbridge init --base-url "$BASE_URL" --token "$TOKEN"
+elif [ -n "$FEED_URL" ]; then
+  schoolbridge init --provider ics --feed-url "$FEED_URL"
 elif [ -n "$BASE_URL$TOKEN" ]; then
   echo "Note: --base-url and --token must be given together; skipping Canvas setup." >&2
 fi
