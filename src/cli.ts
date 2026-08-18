@@ -413,7 +413,31 @@ withCommon(
     .description("Run the schoolbridge MCP server on stdio (for Claude Code, Claude Desktop, Cowork, etc.)")
 ).action(
   run(async (opts: CliOverrides) => {
-    const { provider, store } = ctx(opts);
+    let provider: import("./providers/provider.js").SchoolProvider;
+    let store: StateStore;
+    try {
+      ({ provider, store } = ctx(opts));
+    } catch (err) {
+      // Start anyway: every tool then returns the setup instructions, so an
+      // AI client can tell the user exactly how to connect Canvas instead of
+      // the server dying with an opaque "connection closed".
+      const message = err instanceof Error ? err.message : String(err);
+      const fail = () => Promise.reject(new Error(message));
+      provider = {
+        name: "unconfigured",
+        listCourses: fail,
+        listAssignments: fail,
+        getAssignment: fail,
+        listAnnouncements: fail,
+        listDiscussions: fail,
+        listCalendarEvents: fail,
+        listModuleItems: fail,
+        listFiles: fail,
+        listFeedback: fail,
+      };
+      store = new StateStore("unconfigured");
+      console.error(`[schoolbridge] not configured yet — tools will return setup instructions`);
+    }
     console.error(`[schoolbridge] MCP server v${VERSION} (provider: ${provider.name}) on stdio`);
     await runMcpServer(provider, store);
   })

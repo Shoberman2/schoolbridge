@@ -25,6 +25,15 @@ schoolbridge is **read-only**: it never writes anything back to your LMS.
 npm install -g schoolbridge     # or run everything below with: npx schoolbridge …
 ```
 
+**One-line install** (ideal for VPSes and agent hosts — installs the CLI, connects Canvas, and installs the agent skill in one shot):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Shoberman2/schoolbridge/main/install.sh | bash -s -- \
+  --base-url https://yourschool.instructure.com --token "<canvas-token>" --skill hermes
+```
+
+(All flags optional — bare `| bash` just installs the CLI. `--skill` accepts `hermes`, `openclaw`, or `agents`.)
+
 ### Try it instantly (no credentials)
 
 Every command accepts `--provider mock`, which serves realistic sample data:

@@ -1,7 +1,7 @@
 ---
 name: schoolbridge
 description: Check school assignments, grades, due dates, and teacher announcements from Canvas (or another LMS) via the schoolbridge CLI. Use when the user asks about homework, upcoming tests, deadlines, grades, study plans, or anything school-related — and on heartbeats/schedules to catch new school activity and report it.
-version: 0.3.0
+version: 0.3.1
 author: schoolbridge contributors
 homepage: https://github.com/Shoberman2/schoolbridge
 metadata: {"openclaw":{"emoji":"🎒","requires":{"bins":["schoolbridge"]},"install":[{"id":"npm","kind":"node","package":"schoolbridge","bins":["schoolbridge"]}]}}
