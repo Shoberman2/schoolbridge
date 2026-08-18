@@ -1,0 +1,57 @@
+{
+  "name": "schoolbridge",
+  "version": "0.2.0",
+  "description": "Connect Canvas and other school platforms to AI agents — MCP server, JSON CLI, agent skill (Hermes/OpenClaw), and event watcher for assignments, grades, and announcements.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shoberman2/schoolAgenticExtension.git"
+  },
+  "homepage": "https://github.com/Shoberman2/schoolAgenticExtension#readme",
+  "bugs": {
+    "url": "https://github.com/Shoberman2/schoolAgenticExtension/issues"
+  },
+  "bin": {
+    "schoolbridge": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "skill",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "canvas",
+    "canvas-lms",
+    "lms",
+    "mcp",
+    "model-context-protocol",
+    "agents",
+    "education",
+    "students",
+    "claude"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "commander": "^13.1.0",
+    "zod": "^3.25.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.0"
+  }
+}
